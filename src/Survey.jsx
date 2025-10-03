@@ -1,6 +1,6 @@
 // src/Survey.jsx
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { db } from "./firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
@@ -12,11 +12,26 @@ const STATEMENTS = [
   "AI poses a greater threat than voter suppression, gerrymandering, or institutional attacks",
 ];
 
+const SCALE = [1,2,3,4,5];
+const LABELS = {
+  1: "Strongly disagree",
+  2: "Disagree",
+  3: "Neutral",
+  4: "Agree",
+  5: "Strongly agree",
+};
+
+const SURVEY_ID = import.meta.env.VITE_SURVEY_ID ?? "default-survey";
+
 export default function Survey() {
   const [ratings, setRatings] = useState(Array(STATEMENTS.length).fill(3));
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (localStorage.getItem(`submitted:${SURVEY_ID}`) === "1") setDone(true);
+  }, []);
 
   const update = (i, v) => {
     const next = [...ratings];
@@ -29,27 +44,30 @@ export default function Survey() {
     setSubmitting(true);
     try {
       await addDoc(collection(db, "responses"), {
+        surveyId: SURVEY_ID,
         ratings: ratings.map(Number),
         createdAt: serverTimestamp(),
       });
+      localStorage.setItem(`submitted:${SURVEY_ID}`, "1");
       setDone(true);
-      // OPTIONAL: auto-redirect after 1.5s
-      // setTimeout(() => navigate("/dashboard"), 1500);
     } finally {
       setSubmitting(false);
     }
   };
 
+  // After submit (or already submitted): ONLY "View live results"
   if (done) {
     return (
       <div style={{maxWidth:900, margin:"24px auto", padding:16}}>
         <h2>✅ Thanks! Your response was recorded.</h2>
-        <div style={{marginTop:16, display:"flex", gap:12}}>
-          <button onClick={() => navigate("/")} type="button">Submit another</button>
-          <button onClick={() => navigate("/dashboard")} type="button" style={{background:"#2563eb", color:"#fff"}}>
-            View live results →
-          </button>
-        </div>
+        <p style={{color:"#aaa"}}>You’ve already participated in this survey on this device.</p>
+        <button
+          onClick={() => navigate("/dashboard")}
+          type="button"
+          style={{marginTop:16, padding:"10px 14px", borderRadius:10, background:"#2563eb", color:"#fff"}}
+        >
+          View live results →
+        </button>
       </div>
     );
   }
@@ -57,42 +75,42 @@ export default function Survey() {
   return (
     <div style={{maxWidth:900, margin:"24px auto", padding:16}}>
       <h1>Pre-Course Beliefs Assessment</h1>
-
-      {/* quick link to dashboard even before submitting */}
-      <p style={{margin:"8px 0 20px"}}>
-        <Link to="/dashboard" style={{color:"#7cc0ff", textDecoration:"underline"}}>
-          View live results
-        </Link>
+      <p style={{marginTop:6, color:"#9aa0a6"}}>
+        Scale: <strong>1 = {LABELS[1]}</strong> … <strong>5 = {LABELS[5]}</strong>
       </p>
 
       <form onSubmit={submit}>
         {STATEMENTS.map((q, i) => (
-          <div key={i} style={{margin:"16px 0", padding:12, border:"1px solid #ddd", borderRadius:12}}>
-            <div style={{marginBottom:8, fontWeight:600}}>{q}</div>
-            {[1,2,3,4,5].map(n => (
-              <label key={n} style={{marginRight:12}}>
-                <input
-                  type="radio"
-                  name={`q${i}`}
-                  value={n}
-                  checked={ratings[i]===n}
-                  onChange={() => update(i, n)}
-                /> {n}
-              </label>
-            ))}
+          <div key={i} style={{margin:"18px 0", padding:12, border:"1px solid #333", borderRadius:12}}>
+            <div style={{marginBottom:12, fontWeight:600}}>{q}</div>
+
+            <div style={{display:"flex", gap:16, flexWrap:"wrap", alignItems:"center"}}>
+              {SCALE.map(n => (
+                <label key={n} style={{display:"flex", alignItems:"center", gap:6}}>
+                  <input
+                    type="radio"
+                    name={`q${i}`}
+                    value={n}
+                    checked={ratings[i]===n}
+                    onChange={() => update(i, n)}
+                    aria-label={`${n} - ${LABELS[n]}`}
+                  />
+                  <span style={{fontSize:13}}>
+                    {n} <span style={{opacity:0.7}}>({LABELS[n]})</span>
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
         ))}
 
-        <div style={{display:"flex", gap:12, alignItems:"center", marginTop:12}}>
-          <button disabled={submitting} type="submit" style={{background:"#16a34a", color:"#fff"}}>
-            {submitting ? "Submitting..." : "Submit"}
-          </button>
-
-          {/* secondary button to jump to dashboard anytime */}
-          <button type="button" onClick={() => navigate("/dashboard")}>
-            Live results →
-          </button>
-        </div>
+        <button
+          disabled={submitting}
+          type="submit"
+          style={{marginTop:12, padding:"10px 14px", borderRadius:10, background:"#16a34a", color:"#fff"}}
+        >
+          {submitting ? "Submitting..." : "Submit"}
+        </button>
       </form>
     </div>
   );
