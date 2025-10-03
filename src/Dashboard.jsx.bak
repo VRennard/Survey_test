@@ -1,0 +1,80 @@
+// src/Dashboard.jsx
+import { useEffect, useMemo, useState } from "react";
+import { db } from "./firebase";
+import { collection, onSnapshot } from "firebase/firestore";
+import {
+  Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
+} from "chart.js";
+import { Bar } from "react-chartjs-2";
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+
+ChartJS.defaults.color = "#eee"; // bright text
+ChartJS.defaults.borderColor = "rgba(255,255,255,0.2)";
+
+const STATEMENTS = [
+  "AI-generated deepfakes will determine future elections",
+  "Microtargeting with AI can manipulate voters effectively",
+  "Most people can't distinguish AI-generated from authentic content",
+  "Campaign AI use is primarily deceptive",
+  "AI poses a greater threat than voter suppression, gerrymandering, or institutional attacks",
+];
+const SCALE = [1,2,3,4,5];
+
+export default function Dashboard() {
+  const [rows, setRows] = useState([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "responses"), (snap) => {
+      setRows(snap.docs.map(d => d.data()));
+    });
+    return () => unsub();
+  }, []);
+
+  // build distribution counts for each statement
+  const distributions = useMemo(() => {
+    const dist = STATEMENTS.map(() => ({1:0,2:0,3:0,4:0,5:0}));
+    rows.forEach(r => {
+      if (!Array.isArray(r.ratings)) return;
+      r.ratings.forEach((val,i)=>{
+        const v = Number(val);
+        if (v>=1 && v<=5) dist[i][v] += 1;
+      });
+    });
+    return dist;
+  }, [rows]);
+
+  // color palette
+  const COLORS = ["#ff6b6b","#feca57","#1dd1a1","#54a0ff","#5f27cd"];
+
+  return (
+    <div style={{maxWidth: 1100, margin:"24px auto", padding:16}}>
+      <h1>Live Results</h1>
+      <p style={{color:"#aaa"}}>{rows.length} responses loaded</p>
+
+      {STATEMENTS.map((q, i) => {
+        const data = {
+          labels: SCALE.map(n => `Rating ${n}`),
+          datasets: [{
+            label: q,
+            data: SCALE.map(n => distributions[i][n]),
+            backgroundColor: COLORS,
+          }]
+        };
+        return (
+          <div key={i} style={{height:300, marginBottom:40}}>
+            <Bar
+              data={data}
+              options={{
+                responsive:true,
+                maintainAspectRatio:false,
+                plugins:{ title:{display:true,text:q, color:"#fff"} },
+                scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } }
+              }}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
