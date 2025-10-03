@@ -1,5 +1,6 @@
 // src/Survey.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { db } from "./firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
@@ -15,6 +16,7 @@ export default function Survey() {
   const [ratings, setRatings] = useState(Array(STATEMENTS.length).fill(3));
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const navigate = useNavigate();
 
   const update = (i, v) => {
     const next = [...ratings];
@@ -27,20 +29,42 @@ export default function Survey() {
     setSubmitting(true);
     try {
       await addDoc(collection(db, "responses"), {
-        ratings: ratings.map(Number), // [1..5] × 5
+        ratings: ratings.map(Number),
         createdAt: serverTimestamp(),
       });
       setDone(true);
+      // OPTIONAL: auto-redirect after 1.5s
+      // setTimeout(() => navigate("/dashboard"), 1500);
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (done) return <h2 style={{padding:20}}>✅ Thanks! Your response was recorded.</h2>;
+  if (done) {
+    return (
+      <div style={{maxWidth:900, margin:"24px auto", padding:16}}>
+        <h2>✅ Thanks! Your response was recorded.</h2>
+        <div style={{marginTop:16, display:"flex", gap:12}}>
+          <button onClick={() => navigate("/")} type="button">Submit another</button>
+          <button onClick={() => navigate("/dashboard")} type="button" style={{background:"#2563eb", color:"#fff"}}>
+            View live results →
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{maxWidth:900, margin:"24px auto", padding:16}}>
       <h1>Pre-Course Beliefs Assessment</h1>
+
+      {/* quick link to dashboard even before submitting */}
+      <p style={{margin:"8px 0 20px"}}>
+        <Link to="/dashboard" style={{color:"#7cc0ff", textDecoration:"underline"}}>
+          View live results
+        </Link>
+      </p>
+
       <form onSubmit={submit}>
         {STATEMENTS.map((q, i) => (
           <div key={i} style={{margin:"16px 0", padding:12, border:"1px solid #ddd", borderRadius:12}}>
@@ -58,11 +82,18 @@ export default function Survey() {
             ))}
           </div>
         ))}
-        <button disabled={submitting}>{submitting ? "Submitting..." : "Submit"}</button>
+
+        <div style={{display:"flex", gap:12, alignItems:"center", marginTop:12}}>
+          <button disabled={submitting} type="submit" style={{background:"#16a34a", color:"#fff"}}>
+            {submitting ? "Submitting..." : "Submit"}
+          </button>
+
+          {/* secondary button to jump to dashboard anytime */}
+          <button type="button" onClick={() => navigate("/dashboard")}>
+            Live results →
+          </button>
+        </div>
       </form>
-      <p style={{marginTop:12,fontSize:12,color:"#666"}}>
-        After you submit, open <code>/dashboard</code> in another tab to see live results.
-      </p>
     </div>
   );
 }
