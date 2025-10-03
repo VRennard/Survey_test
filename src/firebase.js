@@ -2,18 +2,19 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
+console.log("ENV apiKey is:", import.meta.env.VITE_FIREBASE_API_KEY); // temp check; remove later
+
 const firebaseConfig = {
-  apiKey: "AIzaSyA1RDK-oEdHjJjgnsskq_kRo-qgTQRluek",
-  authDomain: "beliefs-survey.firebaseapp.com",
-  projectId: "beliefs-survey",
-  storageBucket: "beliefs-survey.firebasestorage.app",
-  messagingSenderId: "899877335103",
-  appId: "1:899877335103:web:50b63e52a56afa9076488a",
-  measurementId: "G-6DR7HX6S86"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  ...(import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+    ? { measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID }
+    : {}),
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-
-// Firestore database
 export const db = getFirestore(app);
