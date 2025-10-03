@@ -1,5 +1,5 @@
 // src/Survey.jsx
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "./firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
@@ -21,17 +21,12 @@ const LABELS = {
   5: "Strongly agree",
 };
 
-const SURVEY_ID = import.meta.env.VITE_SURVEY_ID ?? "default-survey";
-
 export default function Survey() {
   const [ratings, setRatings] = useState(Array(STATEMENTS.length).fill(3));
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (localStorage.getItem(`submitted:${SURVEY_ID}`) === "1") setDone(true);
-  }, []);
 
   const update = (i, v) => {
     const next = [...ratings];
@@ -40,27 +35,29 @@ export default function Survey() {
   };
 
   const submit = async (e) => {
-    e.preventDefault();
+    e.preventDefault();               // ← prevent page reload
+    setError("");
     setSubmitting(true);
     try {
-      await addDoc(collection(db, "responses"), {
-        surveyId: SURVEY_ID,
+      const docRef = await addDoc(collection(db, "responses"), {
         ratings: ratings.map(Number),
         createdAt: serverTimestamp(),
       });
-      localStorage.setItem(`submitted:${SURVEY_ID}`, "1");
-      setDone(true);
+      console.log("Saved doc:", docRef.id);
+      setDone(true);                  // ← show the thank-you screen
+    } catch (err) {
+      console.error("Write failed:", err);
+      setError(err?.message || "Failed to save your response.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // After submit (or already submitted): ONLY "View live results"
+  // After submit: only show "View live results"
   if (done) {
     return (
       <div style={{maxWidth:900, margin:"24px auto", padding:16}}>
         <h2>✅ Thanks! Your response was recorded.</h2>
-        <p style={{color:"#aaa"}}>You’ve already participated in this survey on this device.</p>
         <button
           onClick={() => navigate("/dashboard")}
           type="button"
@@ -111,6 +108,12 @@ export default function Survey() {
         >
           {submitting ? "Submitting..." : "Submit"}
         </button>
+
+        {error && (
+          <p style={{color:"#f87171", marginTop:8}}>
+            ⚠️ {error}
+          </p>
+        )}
       </form>
     </div>
   );
